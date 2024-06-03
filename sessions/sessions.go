@@ -27,6 +27,8 @@ type Instance struct {
 	ResourceID                 string
 	Labels                     map[string]string
 	EnhancedMonitoringInterval time.Duration
+	AllocatedStorage           int64
+	InstanceClass              string
 }
 
 func (i Instance) String() string {
@@ -62,6 +64,7 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 				DisableBasicMetrics:    instance.DisableBasicMetrics,
 				DisableEnhancedMetrics: instance.DisableEnhancedMetrics,
 			})
+
 			continue
 		}
 
@@ -69,7 +72,6 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 		var creds *credentials.Credentials
 
 		creds, err := buildCredentials(instance)
-
 		if err != nil {
 			return nil, err
 		}
@@ -128,6 +130,8 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 					if *dbInstance.DBInstanceIdentifier == instance.Instance {
 						instances[i].ResourceID = *dbInstance.DbiResourceId
 						instances[i].EnhancedMonitoringInterval = time.Duration(*dbInstance.MonitoringInterval) * time.Second
+						instances[i].AllocatedStorage = *dbInstance.AllocatedStorage
+						instances[i].InstanceClass = *dbInstance.DBInstanceClass
 					}
 				}
 			}

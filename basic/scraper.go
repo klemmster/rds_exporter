@@ -10,6 +10,11 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 
 	"github.com/percona/rds_exporter/config"
+	"github.com/percona/rds_exporter/sessions"
+)
+
+const (
+	GBtoByte = 1e9
 )
 
 var (
@@ -20,9 +25,10 @@ var (
 
 type Scraper struct {
 	// params
-	instance  *config.Instance
-	collector *Collector
-	ch        chan<- prometheus.Metric
+	instance        *config.Instance
+	sessionInstance sessions.Instance
+	collector       *Collector
+	ch              chan<- prometheus.Metric
 
 	// internal
 	svc         *cloudwatch.CloudWatch
@@ -31,7 +37,7 @@ type Scraper struct {
 
 func NewScraper(instance *config.Instance, collector *Collector, ch chan<- prometheus.Metric) *Scraper {
 	// Create CloudWatch client
-	sess, _ := collector.sessions.GetSession(instance.Region, instance.Instance)
+	sess, sessInstance := collector.sessions.GetSession(instance.Region, instance.Instance)
 	if sess == nil {
 		return nil
 	}
@@ -51,9 +57,10 @@ func NewScraper(instance *config.Instance, collector *Collector, ch chan<- prome
 
 	return &Scraper{
 		// params
-		instance:  instance,
-		collector: collector,
-		ch:        ch,
+		instance:        instance,
+		sessionInstance: *sessInstance,
+		collector:       collector,
+		ch:              ch,
 
 		// internal
 		svc:         svc,
@@ -85,14 +92,31 @@ func (s *Scraper) Scrape() {
 		go func() {
 			defer wg.Done()
 
-			if err := s.scrapeMetric(metric); err != nil {
-				level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
+			if metric.cwName == "TotalStorageSpace" {
+				if err := s.scrapeMetricSomewhere(metric); err != nil {
+					level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
+				}
+			} else {
+				if err := s.scrapeMetricFromGetMetricsStatistics(metric); err != nil {
+					level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
+				}
 			}
 		}()
 	}
 }
 
-func (s *Scraper) scrapeMetric(metric Metric) error {
+func (s *Scraper) scrapeMetricSomewhere(metric Metric) error {
+	// Send metric.
+	s.ch <- prometheus.MustNewConstMetric(
+		prometheus.NewDesc(metric.prometheusName, metric.prometheusHelp, nil, s.constLabels),
+		prometheus.GaugeValue,
+		float64(s.sessionInstance.AllocatedStorage)*GBtoByte,
+	)
+
+	return nil
+}
+
+func (s *Scraper) scrapeMetricFromGetMetricsStatistics(metric Metric) error {
 	now := time.Now()
 	end := now.Add(-Delay)
 
