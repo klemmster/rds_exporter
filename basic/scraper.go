@@ -14,6 +14,7 @@ import (
 )
 
 const (
+	// GBtoByte is a constant that Gigabyte values can be multiplied with to get Bytes.
 	GBtoByte = 1e9
 )
 
@@ -69,7 +70,7 @@ func NewScraper(instance *config.Instance, collector *Collector, ch chan<- prome
 }
 
 func getLatestDatapoint(datapoints []*cloudwatch.Datapoint) *cloudwatch.Datapoint {
-	var latest *cloudwatch.Datapoint = nil
+	var latest *cloudwatch.Datapoint
 
 	for dp := range datapoints {
 		if latest == nil || latest.Timestamp.Before(*datapoints[dp].Timestamp) {
@@ -87,30 +88,43 @@ func (s *Scraper) Scrape() {
 	defer wg.Wait()
 
 	wg.Add(len(s.collector.metrics))
+
 	for _, metric := range s.collector.metrics {
 		metric := metric
 		go func() {
 			defer wg.Done()
 
-			if metric.cwName == "TotalStorageSpace" {
-				if err := s.scrapeMetricSomewhere(metric); err != nil {
-					level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
-				}
-			} else {
-				if err := s.scrapeMetricFromGetMetricsStatistics(metric); err != nil {
-					level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
-				}
+			if err := s.scrapeMetricSomewhere(metric); err != nil {
+				level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
+			}
+			if err := s.scrapeMetricFromGetMetricsStatistics(metric); err != nil {
+				level.Error(s.collector.l).Log("metric", metric.cwName, "error", err)
 			}
 		}()
 	}
 }
 
 func (s *Scraper) scrapeMetricSomewhere(metric Metric) error {
-	// Send metric.
+	var value float64
+
+	switch metric.cwName {
+	case "TotalStorageSpace":
+		value = float64(s.sessionInstance.AllocatedStorage) * GBtoByte
+	case "TotalMemory":
+		var err error
+
+		value, err = GetInstanceMaxMemory(s.sessionInstance.InstanceClass)
+		if err != nil {
+			return err
+		}
+	default:
+		return nil
+	}
+
 	s.ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc(metric.prometheusName, metric.prometheusHelp, nil, s.constLabels),
 		prometheus.GaugeValue,
-		float64(s.sessionInstance.AllocatedStorage)*GBtoByte,
+		value,
 	)
 
 	return nil

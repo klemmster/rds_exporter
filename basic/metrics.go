@@ -137,6 +137,11 @@ var Metrics = []Metric{
 		prometheusHelp: "Filesystem size in bytes.",
 	},
 	{
+		cwName:         "TotalMemory",
+		prometheusName: "node_memory_MemTotal_bytes",
+		prometheusHelp: "The total memory. Units: Bytes",
+	},
+	{
 		cwName:         "FreeableMemory",
 		prometheusName: "node_memory_Cached_bytes",
 		prometheusHelp: "The amount of available random access memory. Units: Bytes",
