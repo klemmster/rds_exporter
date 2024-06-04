@@ -38,6 +38,10 @@ func NewCollector(sessions *sessions.Sessions, logger log.Logger) *Collector {
 
 	for session, instances := range sessions.AllSessions() {
 		enabledInstances := getEnabledInstances(instances)
+		if len(enabledInstances) == 0 {
+			level.Info(logger).Log("msg", fmt.Sprintf("No enhanced instance configured for session: %s", *session.Config.Region))
+			continue
+		}
 		s := newScraper(session, enabledInstances, logger)
 
 		interval := maxInterval
