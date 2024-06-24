@@ -2,6 +2,7 @@ package basic
 
 import (
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -13,15 +14,11 @@ import (
 	"github.com/percona/rds_exporter/sessions"
 )
 
-//go:generate go run generate/main.go generate/utils.go
-
-var (
-	scrapeTimeDesc = prometheus.NewDesc(
-		"rds_exporter_scrape_duration_seconds",
-		"Time this RDS scrape took, in seconds.",
-		[]string{},
-		nil,
-	)
+var scrapeTimeDesc = prometheus.NewDesc(
+	"rds_exporter_scrape_duration_seconds",
+	"Time this RDS scrape took, in seconds.",
+	[]string{},
+	nil,
 )
 
 type Metric struct {
@@ -39,10 +36,21 @@ type Collector struct {
 
 // New creates a new instance of a Collector.
 func New(config *config.Config, sessions *sessions.Sessions, logger log.Logger) *Collector {
+	metrics := make([]Metric, 0, len(config.PrometheusMetricsToScrape))
+
+	for _, metric := range config.PrometheusMetricsToScrape {
+		idx := slices.IndexFunc(Metrics, func(m Metric) bool {
+			return m.prometheusName == metric
+		})
+		if idx >= 0 {
+			metrics = append(metrics, Metrics[idx])
+		}
+	}
+
 	return &Collector{
 		config:   config,
 		sessions: sessions,
-		metrics:  Metrics,
+		metrics:  metrics,
 		l:        log.With(logger, "component", "basic"),
 	}
 }
@@ -66,6 +74,7 @@ func (e *Collector) collect(ch chan<- prometheus.Metric) {
 	for _, instance := range e.config.Instances {
 		if instance.DisableBasicMetrics {
 			level.Debug(e.l).Log("msg", fmt.Sprintf("Instance %s has disabled basic metrics, skipping.", instance))
+
 			continue
 		}
 		instance := instance
@@ -76,6 +85,7 @@ func (e *Collector) collect(ch chan<- prometheus.Metric) {
 			s := NewScraper(&instance, e, ch)
 			if s == nil {
 				level.Error(e.l).Log("msg", fmt.Sprintf("No scraper for %s, skipping.", instance))
+
 				return
 			}
 			s.Scrape()

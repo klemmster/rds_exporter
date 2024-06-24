@@ -41,7 +41,8 @@ func (i Instance) String() string {
 
 // Config contains configuration file information.
 type Config struct {
-	Instances []Instance `yaml:"instances"`
+	Instances                 []Instance `yaml:"instances"`
+	PrometheusMetricsToScrape []string   `yaml:"enabled_metrics"`
 }
 
 // Load loads configuration from file.
