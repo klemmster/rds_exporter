@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/alecthomas/kingpin/v2"
 	"github.com/go-kit/log"
 	"github.com/go-kit/log/level"
 	"github.com/prometheus/client_golang/prometheus"
@@ -12,7 +13,6 @@ import (
 	"github.com/prometheus/common/promlog"
 	"github.com/prometheus/common/promlog/flag"
 	"github.com/prometheus/common/version"
-	"gopkg.in/alecthomas/kingpin.v2"
 
 	"github.com/percona/rds_exporter/basic"
 	"github.com/percona/rds_exporter/client"
@@ -59,7 +59,7 @@ func main() {
 		prometheus.MustRegister(basic.New(cfg, sess, logger))
 		prometheus.MustRegister(client)
 		http.Handle(*basicMetricsPathF, promhttp.HandlerFor(prometheus.DefaultGatherer, promhttp.HandlerOpts{
-			//ErrorLog:      log.NewErrorLogger(), TODO TS
+			// ErrorLog:      log.NewErrorLogger(), TODO TS
 			ErrorHandling: promhttp.ContinueOnError,
 		}))
 	}
@@ -69,7 +69,7 @@ func main() {
 		registry := prometheus.NewRegistry()
 		registry.MustRegister(enhanced.NewCollector(sess, logger))
 		http.Handle(*enhancedMetricsPathF, promhttp.HandlerFor(registry, promhttp.HandlerOpts{
-			//ErrorLog:      log.NewErrorLogger(), TODO TS
+			// ErrorLog:      log.NewErrorLogger(), TODO TS
 			ErrorHandling: promhttp.ContinueOnError,
 		}))
 	}

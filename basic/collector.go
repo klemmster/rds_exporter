@@ -28,14 +28,14 @@ type Metric struct {
 }
 
 type Collector struct {
-	config   *config.Config
-	sessions *sessions.Sessions
-	metrics  []Metric
-	l        log.Logger
+	config     *config.Config
+	awsConfigs *sessions.Configs
+	metrics    []Metric
+	l          log.Logger
 }
 
 // New creates a new instance of a Collector.
-func New(config *config.Config, sessions *sessions.Sessions, logger log.Logger) *Collector {
+func New(config *config.Config, awsConfigs *sessions.Configs, logger log.Logger) *Collector {
 	metrics := make([]Metric, 0, len(config.PrometheusMetricsToScrape))
 
 	for _, metric := range config.PrometheusMetricsToScrape {
@@ -48,10 +48,10 @@ func New(config *config.Config, sessions *sessions.Sessions, logger log.Logger) 
 	}
 
 	return &Collector{
-		config:   config,
-		sessions: sessions,
-		metrics:  metrics,
-		l:        log.With(logger, "component", "basic"),
+		metrics:    metrics,
+		config:     config,
+		awsConfigs: awsConfigs,
+		l:          log.With(logger, "component", "basic"),
 	}
 }
 

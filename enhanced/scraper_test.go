@@ -46,11 +46,11 @@ func TestScraper(t *testing.T) {
 	sess, err := sessions.New(cfg.Instances, client.HTTP(), logger, false)
 	require.NoError(t, err)
 
-	for session, instances := range sess.AllSessions() {
-		session, instances := session, instances
+	for config, instances := range sess.AllConfigs() {
+		config, instances := config, instances
 		t.Run(fmt.Sprint(instances), func(t *testing.T) {
 			// test that there are no new metrics
-			s := newScraper(session, instances, logger)
+			s := newScraper(config, instances, logger)
 			s.testDisallowUnknownFields = true
 			metrics, messages := s.scrape(context.Background())
 			require.Len(t, metrics, len(instances))
@@ -162,10 +162,10 @@ func TestScraperDisableEnhancedMetrics(t *testing.T) {
 		return false
 	}
 
-	for session, instances := range sess.AllSessions() {
-		session, instances := session, instances
+	for config, instances := range sess.AllConfigs() {
+		config, instances := config, instances
 		t.Run(fmt.Sprint(instances), func(t *testing.T) {
-			s := newScraper(session, instances, logger)
+			s := newScraper(config, instances, logger)
 			s.testDisallowUnknownFields = true
 			metrics, _ := s.scrape(context.Background())
 

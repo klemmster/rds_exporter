@@ -15,7 +15,7 @@ import (
 
 // Collector collects enhanced RDS metrics by utilizing several scrapers.
 type Collector struct {
-	sessions *sessions.Sessions
+	sessions *sessions.Configs
 	logger   log.Logger
 
 	rw      sync.RWMutex
@@ -29,17 +29,17 @@ const (
 )
 
 // NewCollector creates new collector and starts scrapers.
-func NewCollector(sessions *sessions.Sessions, logger log.Logger) *Collector {
+func NewCollector(sessions *sessions.Configs, logger log.Logger) *Collector {
 	c := &Collector{
 		sessions: sessions,
 		logger:   log.With(logger, "component", "enhanced"),
 		metrics:  make(map[string][]prometheus.Metric),
 	}
 
-	for session, instances := range sessions.AllSessions() {
+	for session, instances := range sessions.AllConfigs() {
 		enabledInstances := getEnabledInstances(instances)
 		if len(enabledInstances) == 0 {
-			level.Info(logger).Log("msg", fmt.Sprintf("No enhanced instance configured for session: %s", *session.Config.Region))
+			level.Info(logger).Log("msg", fmt.Sprintf("No enhanced instance configured for session: %s", session.Region))
 			continue
 		}
 		s := newScraper(session, enabledInstances, logger)
