@@ -2,6 +2,7 @@ package basic
 
 import (
 	"context"
+	"maps"
 	"sync"
 	"time"
 
@@ -174,9 +175,22 @@ func (s *Scraper) scrapeMetricFromGetMetricsStatistics(metric Metric) error {
 		v = float64(time.Now().Unix() - int64(v))
 	}
 
+	// We're adding missing labels to metrics that are provided by both, basic and enhanced monitoring
+	customLabels := maps.Clone(s.constLabels)
+
+	if s.instance.DisableEnhancedMetrics == true {
+		switch metric.cwName {
+		case "CPUUtilization":
+			customLabels["cpu"] = "All"
+			customLabels["mode"] = "total"
+		case "FreeStorageSpace":
+			customLabels["mountpoint"] = "/rdsdbdata"
+		}
+	}
+
 	// Send metric.
 	s.ch <- prometheus.MustNewConstMetric(
-		prometheus.NewDesc(metric.prometheusName, metric.prometheusHelp, nil, s.constLabels),
+		prometheus.NewDesc(metric.prometheusName, metric.prometheusHelp, nil, customLabels),
 		prometheus.GaugeValue,
 		v,
 	)
