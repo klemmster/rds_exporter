@@ -112,7 +112,7 @@ func (s *Scraper) scrapeMetricSomewhere(metric Metric) error {
 
 	switch metric.cwName {
 	case "TotalStorageSpace":
-		value = float64(s.sessionInstance.AllocatedStorage) * GBtoByte
+		value = float64(s.sessionInstance.GetAllocatedStorage()) * GBtoByte
 	case "TotalMemory":
 		var err error
 

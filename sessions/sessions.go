@@ -31,7 +31,7 @@ type Instance struct {
 	ResourceID                 string
 	Labels                     map[string]string
 	EnhancedMonitoringInterval time.Duration
-	AllocatedStorage           int32
+	allocatedStorage           atomic.Int32
 	instanceClass              atomic.Value
 }
 
@@ -44,6 +44,18 @@ func (i *Instance) String() string {
 	return res
 }
 
+func (i *Instance) GetAllocatedStorage() int32 {
+	return i.allocatedStorage.Load()
+}
+
+func (i *Instance) SetAllocatedStorage(newStorage int32) {
+	currentStorage := i.GetAllocatedStorage()
+	if newStorage != currentStorage {
+		fmt.Printf("Set instance storage to %d from %d for instance %s\n", newStorage, currentStorage, i.Instance)
+		i.allocatedStorage.Store(newStorage)
+	}
+}
+
 func (i *Instance) GetInstanceClass() string {
 	instanceClass := i.instanceClass.Load().(string)
 
@@ -51,8 +63,10 @@ func (i *Instance) GetInstanceClass() string {
 }
 
 func (i *Instance) SetInstanceClass(instanceClass string) {
-	fmt.Printf("Set instance class: %s\n", instanceClass)
-	i.instanceClass.Store(instanceClass)
+	if i.instanceClass.Load() == nil || instanceClass != i.GetInstanceClass() {
+		fmt.Printf("Set instance class: %s\n", instanceClass)
+		i.instanceClass.Store(instanceClass)
+	}
 }
 
 // Configs is a pool of AWS configs.
@@ -119,7 +133,7 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 					if *dbInstance.DBInstanceIdentifier == instance.Instance {
 						instances[i].ResourceID = *dbInstance.DbiResourceId
 						instances[i].EnhancedMonitoringInterval = time.Duration(*dbInstance.MonitoringInterval) * time.Second
-						instances[i].AllocatedStorage = *dbInstance.AllocatedStorage
+						instances[i].SetAllocatedStorage(*dbInstance.AllocatedStorage)
 						instances[i].SetInstanceClass(*dbInstance.DBInstanceClass)
 					}
 				}
@@ -201,7 +215,7 @@ func (s *Configs) updateInstanceType(logger log.Logger) {
 			for _, dbInstance := range output.DBInstances {
 				for i, instance := range instances {
 					if *dbInstance.DBInstanceIdentifier == instance.Instance {
-						// instances[i].AllocatedStorage = *dbInstance.AllocatedStorage
+						instances[i].SetAllocatedStorage(*dbInstance.AllocatedStorage)
 						instances[i].SetInstanceClass(*dbInstance.DBInstanceClass)
 					}
 				}
