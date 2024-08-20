@@ -167,7 +167,51 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 
 	_ = w.Flush()
 	level.Info(logger).Log("msg", fmt.Sprintf("Using %d sessions.", len(res.configs)))
+
+	ticker := time.NewTicker(1 * time.Second)
+
+	go func() {
+		for t := range ticker.C {
+			fmt.Println("Tick at", t)
+			level.Info(logger).Log("msg", "Update instance type")
+			res.updateInstanceType(logger)
+		}
+	}()
+
 	return res, nil
+}
+
+func (s *Configs) updateInstanceType(logger log.Logger) {
+	// add resource ID to all instances
+	for config, instances := range s.configs {
+		var marker *string
+
+		svc := rds.NewFromConfig(*config)
+
+		for {
+			output, err := svc.DescribeDBInstances(context.TODO(), &rds.DescribeDBInstancesInput{
+				Marker: marker,
+			})
+			if err != nil {
+				_ = level.Error(logger).Log("msg", "Failed to get resource IDs.", "error", err)
+
+				break
+			}
+
+			for _, dbInstance := range output.DBInstances {
+				for i, instance := range instances {
+					if *dbInstance.DBInstanceIdentifier == instance.Instance {
+						// instances[i].AllocatedStorage = *dbInstance.AllocatedStorage
+						instances[i].SetInstanceClass(*dbInstance.DBInstanceClass)
+					}
+				}
+			}
+
+			if marker = output.Marker; marker == nil {
+				break
+			}
+		}
+	}
 }
 
 // GetSession returns session and full instance information for given region and instance.
