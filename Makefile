@@ -60,4 +60,4 @@ gocoverutil:
 	@$(GO) build -modfile=tools/go.mod -o bin/gocoverutil github.com/AlekSi/gocoverutil
 
 release:
-	go build -race -ldflags="$(GO_BUILD_LDFLAGS)" -o $(PMM_RELEASE_PATH)/rds_exporter
+	go build -ldflags="$(GO_BUILD_LDFLAGS)" -o $(PMM_RELEASE_PATH)/rds_exporter
