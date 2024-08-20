@@ -63,7 +63,7 @@ type Configs struct {
 // New creates a new sessions pool for given configuration.
 func New(instances []config.Instance, client *http.Client, logger log.Logger, trace bool) (*Configs, error) {
 	logger = log.With(logger, "component", "sessions")
-	level.Info(logger).Log("msg", "Creating sessions...")
+	_ = level.Info(logger).Log("msg", "Creating sessions...")
 	res := &Configs{
 		configs: make(map[*aws.Config][]Instance),
 	}
@@ -100,14 +100,17 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 
 	// add resource ID to all instances
 	for config, instances := range res.configs {
-		svc := rds.NewFromConfig(*config)
 		var marker *string
+
+		svc := rds.NewFromConfig(*config)
+
 		for {
 			output, err := svc.DescribeDBInstances(context.TODO(), &rds.DescribeDBInstancesInput{
 				Marker: marker,
 			})
 			if err != nil {
-				level.Error(logger).Log("msg", "Failed to get resource IDs.", "error", err)
+				_ = level.Error(logger).Log("msg", "Failed to get resource IDs.", "error", err)
+
 				break
 			}
 
@@ -121,6 +124,7 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 					}
 				}
 			}
+
 			if marker = output.Marker; marker == nil {
 				break
 			}
@@ -130,13 +134,17 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 	// remove instances without resource ID
 	for session, instances := range res.configs {
 		newInstances := make([]Instance, 0, len(instances))
+
 		for _, instance := range instances {
 			if instance.ResourceID == "" {
-				level.Error(logger).Log("msg", fmt.Sprintf("Skipping %s - can't determine resourceID.", instance))
+				_ = level.Error(logger).Log("msg", fmt.Sprintf("Skipping %s - can't determine resourceID.", instance))
+
 				continue
 			}
+
 			newInstances = append(newInstances, instance)
 		}
+
 		res.configs[session] = newInstances
 	}
 
@@ -148,14 +156,16 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 	}
 
 	w := tabwriter.NewWriter(os.Stderr, 0, 0, 2, ' ', 0)
-	fmt.Fprintf(w, "Region\tInstance\tResource ID\tInterval\n")
+	_, _ = fmt.Fprintf(w, "Region\tInstance\tResource ID\tInterval\n")
+
 	for _, instances := range res.configs {
 		for _, instance := range instances {
-			fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", instance.Region, instance.Instance, instance.ResourceID, instance.EnhancedMonitoringInterval)
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", instance.Region, instance.Instance, instance.ResourceID,
+				instance.EnhancedMonitoringInterval)
 		}
 	}
-	_ = w.Flush()
 
+	_ = w.Flush()
 	level.Info(logger).Log("msg", fmt.Sprintf("Using %d sessions.", len(res.configs)))
 	return res, nil
 }
