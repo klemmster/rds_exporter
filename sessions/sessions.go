@@ -149,14 +149,14 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 	for session, instances := range res.configs {
 		newInstances := make([]Instance, 0, len(instances))
 
-		for _, instance := range instances {
-			if instance.ResourceID == "" {
-				_ = level.Error(logger).Log("msg", fmt.Sprintf("Skipping %s - can't determine resourceID.", instance))
+		for i := range instances {
+			if instances[i].ResourceID == "" {
+				_ = level.Error(logger).Log("msg", fmt.Sprintf("Skipping %s - can't determine resourceID.", instances[i]))
 
 				continue
 			}
 
-			newInstances = append(newInstances, instance)
+			newInstances = append(newInstances, instances[i])
 		}
 
 		res.configs[session] = newInstances
@@ -173,29 +173,29 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 	_, _ = fmt.Fprintf(w, "Region\tInstance\tResource ID\tInterval\n")
 
 	for _, instances := range res.configs {
-		for _, instance := range instances {
-			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", instance.Region, instance.Instance, instance.ResourceID,
-				instance.EnhancedMonitoringInterval)
+		for i := range instances {
+			_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", instances[i].Region, instances[i].Instance, instances[i].ResourceID,
+				instances[i].EnhancedMonitoringInterval)
 		}
 	}
 
 	_ = w.Flush()
 	level.Info(logger).Log("msg", fmt.Sprintf("Using %d sessions.", len(res.configs)))
 
-	ticker := time.NewTicker(1 * time.Second)
+	ticker := time.NewTicker(30 * time.Minute)
 
 	go func() {
 		for t := range ticker.C {
 			fmt.Println("Tick at", t)
 			level.Info(logger).Log("msg", "Update instance type")
-			res.updateInstanceType(logger)
+			res.updateInstance(logger)
 		}
 	}()
 
 	return res, nil
 }
 
-func (s *Configs) updateInstanceType(logger log.Logger) {
+func (s *Configs) updateInstance(logger log.Logger) {
 	// add resource ID to all instances
 	for config, instances := range s.configs {
 		var marker *string
@@ -213,8 +213,8 @@ func (s *Configs) updateInstanceType(logger log.Logger) {
 			}
 
 			for _, dbInstance := range output.DBInstances {
-				for i, instance := range instances {
-					if *dbInstance.DBInstanceIdentifier == instance.Instance {
+				for i := range instances {
+					if *dbInstance.DBInstanceIdentifier == instances[i].Instance {
 						instances[i].SetAllocatedStorage(*dbInstance.AllocatedStorage)
 						instances[i].SetInstanceClass(*dbInstance.DBInstanceClass)
 					}
@@ -231,12 +231,13 @@ func (s *Configs) updateInstanceType(logger log.Logger) {
 // GetSession returns session and full instance information for given region and instance.
 func (s *Configs) GetSession(region, instance string) (*aws.Config, *Instance) {
 	for config, instances := range s.configs {
-		for _, i := range instances {
-			if i.Region == region && i.Instance == instance {
-				return config, &i
+		for i := range instances {
+			if instances[i].Region == region && instances[i].Instance == instance {
+				return config, &instances[i]
 			}
 		}
 	}
+
 	return nil, nil
 }
 
