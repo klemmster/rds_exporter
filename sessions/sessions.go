@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"sync/atomic"
 	"text/tabwriter"
 	"time"
 
@@ -31,16 +32,27 @@ type Instance struct {
 	Labels                     map[string]string
 	EnhancedMonitoringInterval time.Duration
 	AllocatedStorage           int32
-	InstanceClass              string
+	instanceClass              atomic.Value
 }
 
-func (i Instance) String() string {
+func (i *Instance) String() string {
 	res := i.Region + "/" + i.Instance
 	if i.ResourceID != "" {
 		res += " (" + i.ResourceID + ")"
 	}
 
 	return res
+}
+
+func (i *Instance) GetInstanceClass() string {
+	instanceClass := i.instanceClass.Load().(string)
+
+	return instanceClass
+}
+
+func (i *Instance) SetInstanceClass(instanceClass string) {
+	fmt.Printf("Set instance class: %s\n", instanceClass)
+	i.instanceClass.Store(instanceClass)
 }
 
 // Configs is a pool of AWS configs.
@@ -105,7 +117,7 @@ func New(instances []config.Instance, client *http.Client, logger log.Logger, tr
 						instances[i].ResourceID = *dbInstance.DbiResourceId
 						instances[i].EnhancedMonitoringInterval = time.Duration(*dbInstance.MonitoringInterval) * time.Second
 						instances[i].AllocatedStorage = *dbInstance.AllocatedStorage
-						instances[i].InstanceClass = *dbInstance.DBInstanceClass
+						instances[i].SetInstanceClass(*dbInstance.DBInstanceClass)
 					}
 				}
 			}

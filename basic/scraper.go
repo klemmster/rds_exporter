@@ -116,7 +116,7 @@ func (s *Scraper) scrapeMetricSomewhere(metric Metric) error {
 	case "TotalMemory":
 		var err error
 
-		value, err = GetInstanceMaxMemory(s.sessionInstance.InstanceClass)
+		value, err = GetInstanceMaxMemory(s.sessionInstance.GetInstanceClass())
 		if err != nil {
 			return err
 		}
