@@ -183,8 +183,6 @@ func (s *Scraper) scrapeMetricFromGetMetricsStatistics(metric Metric) error {
 		case "CPUUtilization":
 			customLabels["cpu"] = "All"
 			customLabels["mode"] = "total"
-		case "FreeStorageSpace":
-			customLabels["mountpoint"] = "/rdsdbdata"
 		}
 	}
 
